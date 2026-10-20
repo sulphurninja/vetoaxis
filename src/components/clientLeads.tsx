@@ -22,6 +22,7 @@ import { DYNAMIC_FIELDS } from '@/lib/dynamic-fields';
 import { LEAD_STATUSES } from '@/lib/lead-utils';
 import { PageHeader } from '@/components/page-header';
 import { StatusBadge, formatStatus } from '@/components/status-badge';
+import { CreatorMark, creatorActivityLabel } from '@/components/creator-mark';
 
 const PAGE_SIZE = 10;
 
@@ -171,12 +172,12 @@ export default function ClientLeads() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-5">Client</TableHead>
+                <TableHead className="pl-5">Lead name</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Case type</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Vendor</TableHead>
-                <TableHead>Created by</TableHead>
+                <TableHead>Client code</TableHead>
+                <TableHead>{user?.role === 'super_admin' ? 'Vendor' : 'Vendor code'}</TableHead>
                 <TableHead>Entered</TableHead>
                 <TableHead className="pr-5 text-right"><span className="sr-only">Actions</span></TableHead>
               </TableRow>
@@ -257,7 +258,9 @@ export default function ClientLeads() {
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-foreground/90">{lead.createdBy?.name || 'System'}</TableCell>
+                  <TableCell>
+                    <CreatorMark person={lead.createdBy} showName={user?.role === 'super_admin'} />
+                  </TableCell>
                   <TableCell>
                     <p className="tabular-nums text-foreground/90">{format(new Date(lead.createdAt), 'MMM d, yyyy')}</p>
                     <p className="text-xs tabular-nums text-muted-foreground">{format(new Date(lead.createdAt), 'h:mm a')}</p>
@@ -335,7 +338,7 @@ export default function ClientLeads() {
                       {log.notes && (
                         <p className="rounded-lg bg-muted/60 px-3 py-2 text-sm text-foreground/85">{log.notes}</p>
                       )}
-                      <p className="text-xs text-muted-foreground">by {log.changedBy?.name || 'System'}</p>
+                      <p className="text-xs text-muted-foreground">by {creatorActivityLabel(log.changedBy, user?.role === 'super_admin')}</p>
                     </div>
                   </li>
                 ))

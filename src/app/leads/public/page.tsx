@@ -88,6 +88,7 @@ export default function PublicLeadPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [savedAsDuplicate, setSavedAsDuplicate] = useState(false);
   const [selectedType, setSelectedType] = useState('');
   const [dynamicFields, setDynamicFields] = useState<Record<string, any>>({});
   const [dynamicErrors, setDynamicErrors] = useState<Record<string, string>>({});
@@ -153,6 +154,7 @@ export default function PublicLeadPage() {
         status: 'PENDING',
       });
 
+      setSavedAsDuplicate(Boolean(data.isDuplicate));
       setSubmitted(true);
       toast({
         title: data.isDuplicate ? 'Duplicate Lead' : 'Success',
@@ -277,8 +279,12 @@ export default function PublicLeadPage() {
             <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-success/12 text-success ring-8 ring-success/5">
               <Check className="size-7" strokeWidth={2.5} />
             </div>
-            <h2 className="mt-5 text-xl font-bold tracking-tight">Lead created</h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">It passed duplicate and phone checks.</p>
+            <h2 className="mt-5 text-xl font-bold tracking-tight">{savedAsDuplicate ? 'Saved as duplicate' : 'Lead created'}</h2>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {savedAsDuplicate
+                ? 'This lead matches an existing record, so it was added with Duplicate status.'
+                : 'It passed duplicate and phone checks.'}
+            </p>
             <Button className="mt-6" onClick={() => router.push('/leads')}>
               View all leads
             </Button>

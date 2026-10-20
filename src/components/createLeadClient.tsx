@@ -138,6 +138,7 @@ export default function CreateLeadClient({ mode = 'create', leadId }: CreateLead
   const isEditMode = mode === 'edit' && !!leadId;
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [savedAsDuplicate, setSavedAsDuplicate] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditMode);
   const [selectedType, setSelectedType] = useState<string>('');
   const [dynamicFields, setDynamicFields] = useState<Record<string, string>>({});
@@ -256,13 +257,17 @@ export default function CreateLeadClient({ mode = 'create', leadId }: CreateLead
       };
 
       if (isEditMode && leadId) {
-        await axios.put(`/api/leads/${leadId}`, payload);
-        toast({ title: 'Success', description: 'Lead updated successfully' });
+        const { data } = await axios.put(`/api/leads/${leadId}`, payload);
+        toast({
+          title: data.isDuplicate ? 'Saved as duplicate' : 'Success',
+          description: data.message || 'Lead updated successfully',
+        });
         router.push(`/admin/leads/${leadId}`);
         return;
       }
 
       const { data } = await axios.post('/api/leads', { ...payload, status: 'PENDING' });
+      setSavedAsDuplicate(Boolean(data.isDuplicate));
       setSubmitted(true);
       toast({
         title: data.isDuplicate ? 'Duplicate Lead' : 'Success',
@@ -421,11 +426,15 @@ export default function CreateLeadClient({ mode = 'create', leadId }: CreateLead
           >
             <Check className="size-7" strokeWidth={2.5} />
           </motion.div>
-          <h2 className="text-xl font-bold tracking-tight">Lead created</h2>
-          <p className="mt-1.5 text-sm text-muted-foreground">It passed duplicate and phone checks and is now in your pipeline.</p>
+          <h2 className="text-xl font-bold tracking-tight">{savedAsDuplicate ? 'Saved as duplicate' : 'Lead created'}</h2>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            {savedAsDuplicate
+              ? 'This lead matches an existing record, so it was added with Duplicate status.'
+              : 'It passed duplicate and phone checks and is now in your pipeline.'}
+          </p>
           <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
             <Button variant="outline" onClick={() => router.push('/leads')}>View my leads</Button>
-            <Button onClick={() => { form.reset(); setSubmitted(false); setSelectedType(''); setDynamicFields({}); setProblems([]); }}>
+            <Button onClick={() => { form.reset(); setSubmitted(false); setSavedAsDuplicate(false); setSelectedType(''); setDynamicFields({}); setProblems([]); }}>
               Add another
             </Button>
           </div>

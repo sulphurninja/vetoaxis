@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from '@/lib/auth';
 import Lead from '@/models/Lead';
 import { dbConnect } from '@/lib/dbConnect';
+import { redactLeadPeople } from '@/lib/creator-visibility';
 import { applicationTypeQuery, createdAtDayQuery, getStatusQueryValue, LEGACY_STATUS_VALUES } from '@/lib/lead-utils';
 
 const DEFAULT_LIMIT = 30;
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
     const [leads, total, pending, verified, rejected] = await Promise.all([
       Lead.find(query)
         .select('firstName lastName email phone status applicationType createdAt buyerCode createdBy')
-        .populate('createdBy', 'name email')
+        .populate('createdBy', 'name email vendorCode')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -102,7 +103,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     return NextResponse.json({
-      leads,
+      leads: leads.map(lead => redactLeadPeople(lead, decoded.role as string)),
       pagination: {
         total,
         page,

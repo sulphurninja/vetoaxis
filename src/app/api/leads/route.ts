@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import Lead from '@/models/Lead';
 import { getAuthToken } from '@/lib/auth';
 import { dbConnect } from '@/lib/dbConnect';
+import { redactLeadPeople } from '@/lib/creator-visibility';
 import User from '@/models/User';
-import { findDuplicateLead } from '@/lib/lead-duplicates';
+import { allowStoredDuplicates, findDuplicateLead } from '@/lib/lead-duplicates';
 import {
   applicationTypeQuery,
   buildFieldsArray,
@@ -83,13 +84,14 @@ export async function GET(request: NextRequest) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('createdBy', 'name email')
+      .populate('createdBy', 'name email vendorCode')
+      .populate('statusHistory.changedBy', 'name email vendorCode')
       .lean();
 
     const total = await Lead.countDocuments(query);
 
     return NextResponse.json({
-      leads,
+      leads: leads.map(lead => redactLeadPeople(lead, decoded.role as string)),
       pagination: {
         total,
         page,
@@ -156,17 +158,9 @@ export async function POST(request: NextRequest) {
       lastName: body.lastName,
     });
 
-    if (isDuplicate) {
-      return NextResponse.json({
-        message: duplicateReason || 'This lead matches an existing record and was not saved.',
-        errors: fieldErrors,
-        fieldErrors,
-        isDuplicate: true,
-        duplicateInfo: existingLeadInfo,
-      }, { status: 409 });
-    }
+    if (isDuplicate) await allowStoredDuplicates();
 
-    const status = body.status || 'PENDING';
+    const status = isDuplicate ? 'DUPLICATE' : (body.status || 'PENDING');
     const notes = body.notes || '';
     const fieldsArray = buildFieldsArray(fields);
 
@@ -198,7 +192,9 @@ export async function POST(request: NextRequest) {
         {
           fromStatus: '',
           toStatus: status,
-          notes: 'Lead created',
+          notes: isDuplicate
+            ? (duplicateReason || 'Matched an existing lead, so this lead was saved as Duplicate.')
+            : 'Lead created',
           changedBy: decoded.id,
           timestamp: new Date()
         }
@@ -206,11 +202,13 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({
-      message: 'Lead created successfully',
+      message: isDuplicate
+        ? `Saved with Duplicate status. ${duplicateReason || 'It matches an existing lead.'}`
+        : 'Lead created successfully',
       lead,
-      isDuplicate: false,
-      duplicateInfo: null,
-      fieldErrors: [],
+      isDuplicate,
+      duplicateInfo: isDuplicate ? existingLeadInfo : null,
+      fieldErrors: isDuplicate ? fieldErrors : [],
     }, { status: 201 });
   } catch (error) {
     const mongoError = error as { code?: number };

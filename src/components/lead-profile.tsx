@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { DYNAMIC_FIELDS } from '@/lib/dynamic-fields';
 import { StatusBadge } from '@/components/status-badge';
+import { creatorActivityLabel } from '@/components/creator-mark';
 import { cn } from '@/lib/utils';
 
 export const formatLeadDate = (value?: string | null) => {
@@ -81,11 +82,12 @@ function Section({ title, icon: Icon, children, className }: {
   );
 }
 
-export function LeadProfile({ lead, actions, backButton, onVendorCode }: {
+export function LeadProfile({ lead, actions, backButton, onClientCode, showCreatorName = false }: {
   lead: any;
   actions?: ReactNode;
   backButton?: ReactNode;
-  onVendorCode?: () => void;
+  onClientCode?: () => void;
+  showCreatorName?: boolean;
 }) {
   const appFields = DYNAMIC_FIELDS[lead.applicationType] || [];
   const fields: { key: string; value: any }[] = lead.fields || [];
@@ -117,24 +119,33 @@ export function LeadProfile({ lead, actions, backButton, onVendorCode }: {
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
                 <span className="font-mono">#{String(lead._id).slice(-6).toUpperCase()}</span>
                 {lead.applicationType && <span className="flex items-center gap-1"><Briefcase className="size-3.5" />{lead.applicationType}</span>}
-                <span className="flex items-center gap-1"><UserRound className="size-3.5" />Created by {lead.createdBy?.name || 'System'}</span>
+                {showCreatorName && (
+                  <span className="flex items-center gap-1"><UserRound className="size-3.5" />Created by {lead.createdBy?.name || 'System'}</span>
+                )}
+                <span className="flex items-center gap-1"><Tag className="size-3.5" />Vendor <span className="font-mono font-semibold text-foreground">{lead.createdBy?.vendorCode || '—'}</span></span>
               </div>
             </div>
           </div>
           {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
         </div>
 
-        <dl className="relative mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border md:grid-cols-4">
+        <dl className={cn('relative mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border', showCreatorName ? 'xl:grid-cols-5' : 'md:grid-cols-4')}>
           {[
             { label: 'Created', value: lead.createdAt ? format(new Date(lead.createdAt), 'MMM d, yyyy · h:mm a') : '—' },
             { label: 'Last updated', value: lead.updatedAt ? format(new Date(lead.updatedAt), 'MMM d, yyyy · h:mm a') : '—' },
-            { label: 'Created by', value: lead.createdBy?.name || 'System' },
+            ...(showCreatorName ? [{ label: 'Created by', value: lead.createdBy?.name || 'System' }] : []),
             {
               label: 'Vendor code',
-              value: onVendorCode ? (
+              value: lead.createdBy?.vendorCode
+                ? <span className="rounded-md border bg-muted px-1.5 py-0.5 font-mono text-xs font-semibold">{lead.createdBy.vendorCode}</span>
+                : <span className="text-muted-foreground">Not set</span>,
+            },
+            {
+              label: 'Client code',
+              value: onClientCode ? (
                 <button
                   type="button"
-                  onClick={onVendorCode}
+                  onClick={onClientCode}
                   className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-primary/40 bg-primary/5 px-2 py-0.5 font-mono text-xs font-semibold text-primary transition-colors hover:border-primary hover:bg-primary/10"
                 >
                   <Tag className="size-3" />
@@ -230,7 +241,7 @@ export function LeadProfile({ lead, actions, backButton, onVendorCode }: {
                           <p className="rounded-lg bg-muted/60 px-3 py-2 text-[13px] text-foreground/85">{entry.notes}</p>
                         )}
                         <p className="text-xs text-muted-foreground">
-                          {entry.changedBy?.name || 'System'} · {format(new Date(entry.timestamp), 'MMM d, yyyy h:mm a')}
+                          {creatorActivityLabel(entry.changedBy, showCreatorName)} · {format(new Date(entry.timestamp), 'MMM d, yyyy h:mm a')}
                         </p>
                       </div>
                     </li>

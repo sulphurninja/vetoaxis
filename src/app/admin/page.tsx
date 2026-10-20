@@ -115,6 +115,7 @@ type UserType = {
   createdAt: string;
   updatedAt: string;
   organizationId?: string;
+  vendorCode?: string;
   organization?: {
     _id: string;
     name: string;
@@ -142,6 +143,7 @@ const newUserSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   role: z.enum(['agent', 'admin', 'super_admin']),
   organizationId: z.string().optional(),
+  vendorCode: z.string().trim().max(12, 'Keep the code to 12 characters').regex(/^[A-Za-z0-9-]*$/, 'Use letters, numbers, or a hyphen'),
 }).superRefine((data, ctx) => {
   if (data.role !== 'super_admin' && !data.organizationId) {
     ctx.addIssue({
@@ -158,6 +160,7 @@ const updateUserSchema = z.object({
   role: z.enum(['agent', 'admin', 'super_admin']),
   active: z.boolean(),
   organizationId: z.string().optional(),
+  vendorCode: z.string().trim().max(12, 'Keep the code to 12 characters').regex(/^[A-Za-z0-9-]*$/, 'Use letters, numbers, or a hyphen'),
 }).superRefine((data, ctx) => {
   if (data.role !== 'super_admin' && !data.organizationId) {
     ctx.addIssue({
@@ -236,6 +239,7 @@ export default function AdminPage() {
       password: '',
       role: 'agent',
       organizationId: '',
+      vendorCode: '',
     },
   });
 
@@ -264,6 +268,7 @@ export default function AdminPage() {
       role: 'agent',
       active: true,
       organizationId: '',
+      vendorCode: '',
     },
   });
 
@@ -581,6 +586,7 @@ export default function AdminPage() {
     editForm.setValue('role', user.role);
     editForm.setValue('active', user.active !== false); // Handle undefined
     editForm.setValue('organizationId', user.organizationId || '');
+    editForm.setValue('vendorCode', user.vendorCode || '');
     setEditDialogOpen(true);
   };
 
@@ -607,6 +613,7 @@ export default function AdminPage() {
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (user.vendorCode && user.vendorCode.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (user.organization?.name && user.organization.name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
@@ -813,6 +820,23 @@ const formatDate = (dateString: string | Date) => {
 
                     <FormField
                       control={createForm.control}
+                      name="vendorCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Vendor code</FormLabel>
+                          <FormControl>
+                            <Input placeholder="V1" className="font-mono uppercase" {...field} onChange={(event) => field.onChange(event.target.value.toUpperCase())} />
+                          </FormControl>
+                          <FormDescription className="text-xs">
+                            Shown on every lead this person creates. Admins and agents see this code instead of the name.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={createForm.control}
                       name="password"
                       render={({ field }) => (
                         <FormItem>
@@ -993,6 +1017,7 @@ const formatDate = (dateString: string | Date) => {
                       <TableHead>User</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Role</TableHead>
+                      <TableHead>Vendor code</TableHead>
                       <TableHead>Organization</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Entry Date</TableHead>
@@ -1002,7 +1027,7 @@ const formatDate = (dateString: string | Date) => {
                   <TableBody>
                     {filteredUsers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="h-24 text-center">
+                        <TableCell colSpan={8} className="h-24 text-center">
                           {searchQuery ? (
                             <>
                               <p className="text-muted-foreground">No users match "{searchQuery}"</p>
@@ -1059,6 +1084,14 @@ const formatDate = (dateString: string | Date) => {
                               {user.role === 'super_admin' ? 'Super Admin' :
                                 user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                             </Badge>
+                          </TableCell>
+
+                          <TableCell>
+                            {user.vendorCode ? (
+                              <span className="rounded-md border bg-muted px-1.5 py-0.5 font-mono text-xs font-semibold">{user.vendorCode}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
                           </TableCell>
 
                           <TableCell>
@@ -1168,6 +1201,23 @@ const formatDate = (dateString: string | Date) => {
                         <FormControl>
                           <Input type="email" {...field} />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="vendorCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Vendor code</FormLabel>
+                        <FormControl>
+                          <Input placeholder="V1" className="font-mono uppercase" {...field} onChange={(event) => field.onChange(event.target.value.toUpperCase())} />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          Shown on leads this person created.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

@@ -3,6 +3,7 @@ import { getAuthToken } from '@/lib/auth';
 import Lead from '@/models/Lead';
 import { dbConnect } from '@/lib/dbConnect';
 import { LEAD_STATUSES, normalizeLeadStatus } from '@/lib/lead-utils';
+import { redactLeadPeople } from '@/lib/creator-visibility';
 
 export async function GET(
   request: NextRequest,
@@ -27,8 +28,8 @@ export async function GET(
 
     // Check if the lead exists
     const lead = await Lead.findById(leadId)
-      .populate('createdBy', 'name email organizationId')
-      .populate('statusHistory.changedBy', 'name email')
+      .populate('createdBy', 'name email vendorCode organizationId')
+      .populate('statusHistory.changedBy', 'name email vendorCode')
       .populate('organizationId', 'name');
 
     if (!lead) {
@@ -38,7 +39,7 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ lead });
+    return NextResponse.json({ lead: redactLeadPeople(lead, userRole as string) });
   } catch (error) {
     console.error('Error fetching lead:', error);
     return NextResponse.json(
@@ -75,7 +76,7 @@ export async function PUT(
     if (!isSuperAdmin) {
       const code = typeof buyerCode === 'string' ? buyerCode.trim().toUpperCase() : '';
       if (!code) {
-        return NextResponse.json({ message: 'Vendor code is required.' }, { status: 400 });
+        return NextResponse.json({ message: 'Client code is required.' }, { status: 400 });
       }
       const updated = await Lead.findByIdAndUpdate(
         leadId,
@@ -83,7 +84,7 @@ export async function PUT(
         { new: true }
       );
       if (!updated) return NextResponse.json({ message: 'Lead not found' }, { status: 404 });
-      return NextResponse.json({ message: 'Vendor code updated', lead: updated });
+      return NextResponse.json({ message: 'Client code updated', lead: redactLeadPeople(updated, decoded.role as string) });
     }
 
     if (status && !LEAD_STATUSES.includes(status)) {

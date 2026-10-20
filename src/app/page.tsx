@@ -7,7 +7,7 @@ import { ArrowRight, BarChart3, Copy, ShieldCheck } from 'lucide-react';
 const FEATURES = [
   { icon: Copy, title: 'Duplicate protection', body: 'Name, phone, email, address, and witness checks block repeats before they save.' },
   { icon: ShieldCheck, title: 'Genuine contact data', body: 'Strict 10-digit US phone validation rejects junk and sequential numbers.' },
-  { icon: BarChart3, title: 'Pipeline clarity', body: 'Live status breakdowns, vendor codes, and full activity history.' },
+  { icon: BarChart3, title: 'Pipeline clarity', body: 'Live status breakdowns, client codes, and full activity history.' },
 ];
 
 export default function Home() {

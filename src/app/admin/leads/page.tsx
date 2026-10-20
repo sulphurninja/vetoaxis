@@ -40,6 +40,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader, StatCard } from '@/components/page-header';
 import { StatusBadge, formatStatus } from '@/components/status-badge';
+import { CreatorMark } from '@/components/creator-mark';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -279,13 +280,13 @@ export default function LeadManagement() {
         toast({ title: "Success", description: "Lead updated" });
       } else {
         if (!code) {
-          toast({ title: "Vendor code required", description: "Choose a vendor code such as C1.", variant: "destructive" });
+          toast({ title: "Client code required", description: "Choose a client code such as C1.", variant: "destructive" });
           setSubmitting(false);
           return;
         }
         await axios.put(`/api/admin/leads/${selectedLead._id}/buyer-code`, { buyerCode: code });
         await rememberVendorCode(code);
-        toast({ title: "Success", description: "Vendor code updated" });
+        toast({ title: "Success", description: "Client code updated" });
       }
       setUpdateDialogOpen(false);
       setReloadKey((k) => k + 1);
@@ -348,7 +349,7 @@ export default function LeadManagement() {
         <PageHeader
           eyebrow="Administration"
           title="Lead Management"
-          description="Review every lead across the team, see who created it, and assign vendor codes."
+          description="Review every lead across the team. Client codes are assigned on the lead. Vendor codes belong to the person who created it."
           actions={
             <Button variant="outline" onClick={() => setReloadKey((k) => k + 1)}>
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
@@ -424,10 +425,10 @@ export default function LeadManagement() {
                   </Select>
                   <Select value={buyerCodeFilter} onValueChange={setBuyerCodeFilter}>
                     <SelectTrigger size="sm" className="w-[160px]">
-                      <SelectValue placeholder="Vendor code" />
+                      <SelectValue placeholder="Client code" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ALL">All vendor codes</SelectItem>
+                      <SelectItem value="ALL">All client codes</SelectItem>
                       {buyerCodes.map((code) => <SelectItem key={code} value={code}>{code}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -447,12 +448,12 @@ export default function LeadManagement() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="pl-5">Client</TableHead>
+                <TableHead className="pl-5">Lead name</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Case type</TableHead>
-                <TableHead>Created by</TableHead>
+                <TableHead>{isSuperAdmin ? 'Vendor' : 'Vendor code'}</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Vendor</TableHead>
+                <TableHead>Client code</TableHead>
                 <TableHead>Entered</TableHead>
                 <TableHead className="pr-5 text-right"><span className="sr-only">Actions</span></TableHead>
               </TableRow>
@@ -511,12 +512,7 @@ export default function LeadManagement() {
                       </TableCell>
                       <TableCell className="text-foreground/90">{lead.applicationType || 'General'}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="flex size-6 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
-                            {(lead.createdBy?.name || 'S').charAt(0).toUpperCase()}
-                          </span>
-                          <span className="text-foreground/90">{lead.createdBy?.name || 'System'}</span>
-                        </div>
+                        <CreatorMark person={lead.createdBy} showName={isSuperAdmin} />
                       </TableCell>
                       <TableCell><StatusBadge status={lead.status} /></TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
@@ -549,7 +545,7 @@ export default function LeadManagement() {
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem onClick={() => handleUpdateLeadClick(lead)} className="cursor-pointer">
-                              <Tag className="mr-2 h-4 w-4" /> Set vendor code
+                              <Tag className="mr-2 h-4 w-4" /> Set client code
                             </DropdownMenuItem>
                             {isSuperAdmin && (
                               <>
@@ -593,14 +589,14 @@ export default function LeadManagement() {
         <Dialog open={updateDialogOpen} onOpenChange={setUpdateDialogOpen}>
           <DialogContent className="sm:max-w-[440px]">
             <DialogHeader>
-              <DialogTitle>{isSuperAdmin ? 'Status and vendor code' : 'Set vendor code'}</DialogTitle>
+              <DialogTitle>{isSuperAdmin ? 'Status and client code' : 'Set client code'}</DialogTitle>
               <DialogDescription>
                 {selectedLead && (
                   <span className="font-medium text-foreground">{selectedLead.firstName} {selectedLead.lastName} · </span>
                 )}
                 {isSuperAdmin
-                  ? 'Change status, add a notepad entry, or assign a vendor code.'
-                  : 'Assign a simple vendor code such as C1 or C2.'}
+                  ? 'Change status, add a notepad entry, or assign a client code.'
+                  : 'Assign a simple client code such as C1 or C2.'}
               </DialogDescription>
             </DialogHeader>
             <Form {...updateForm}>
@@ -630,7 +626,7 @@ export default function LeadManagement() {
                 )} />}
                 <FormField control={updateForm.control} name="buyerCode" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Vendor code</FormLabel>
+                    <FormLabel>Client code</FormLabel>
                     {buyerCodes.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {buyerCodes.map(code => {
@@ -667,7 +663,7 @@ export default function LeadManagement() {
                   <Button type="button" variant="outline" onClick={() => setUpdateDialogOpen(false)}>Cancel</Button>
                   <Button type="submit" disabled={submitting}>
                     {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {isSuperAdmin ? 'Save changes' : 'Save vendor code'}
+                    {isSuperAdmin ? 'Save changes' : 'Save client code'}
                   </Button>
                 </DialogFooter>
               </form>

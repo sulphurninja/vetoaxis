@@ -30,9 +30,24 @@ const buildLeadInfo = (lead: any) => ({
   id: lead._id,
   name: `${lead.firstName || ''} ${lead.lastName || ''}`.trim(),
   status: lead.status,
-  createdBy: lead.createdBy ? lead.createdBy.name : 'Unknown',
+    createdBy: lead.createdBy?.vendorCode || '',
   createdAt: lead.createdAt,
 });
+
+let duplicateValuesAllowed = false;
+
+export async function allowStoredDuplicates() {
+  if (duplicateValuesAllowed) return;
+  const indexes = await Lead.collection.indexes();
+  const blocking = indexes.filter(index => {
+    if (!index.unique || !index.name) return false;
+    return Object.keys(index.key || {}).some(key =>
+      ['email', 'emailNormalized', 'phone', 'phoneNormalized'].includes(key)
+    );
+  });
+  await Promise.all(blocking.map(index => Lead.collection.dropIndex(index.name as string).catch(() => undefined)));
+  duplicateValuesAllowed = true;
+}
 
 const pushUnique = (errors: FieldValidationError[], error: FieldValidationError) => {
   if (errors.some(item => item.field === error.field && item.message === error.message)) return;
@@ -169,7 +184,7 @@ export const findDuplicateLead = async ({
 
   const matches: any[] = await Lead.find(query)
     .select('_id firstName lastName status createdBy createdAt phone phoneNormalized email emailNormalized address addressNormalized streetAddress city state zipCode fullNameNormalized fields')
-    .populate('createdBy', 'name email')
+    .populate('createdBy', 'vendorCode')
     .limit(8)
     .lean();
 

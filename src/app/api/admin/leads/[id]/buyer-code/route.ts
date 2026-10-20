@@ -17,14 +17,14 @@ export async function PUT(
     }
 
     if (!['admin', 'super_admin'].includes(decoded.role as string)) {
-      return NextResponse.json({ message: 'Only admins can update vendor codes' }, { status: 403 });
+      return NextResponse.json({ message: 'Only admins can update client codes' }, { status: 403 });
     }
 
     const body = await request.json();
     const buyerCode = typeof body.buyerCode === 'string' ? body.buyerCode.trim().toUpperCase() : '';
 
     if (!buyerCode) {
-      return NextResponse.json({ message: 'Vendor code is required' }, { status: 400 });
+      return NextResponse.json({ message: 'Client code is required' }, { status: 400 });
     }
 
     const lead = await Lead.findById(leadId);
@@ -34,11 +34,11 @@ export async function PUT(
     await lead.save();
 
     return NextResponse.json({
-      message: 'Vendor code updated',
+      message: 'Client code updated',
       lead: { _id: lead._id, buyerCode: lead.buyerCode },
     });
   } catch (error) {
-    console.error('Error updating vendor code:', error);
+    console.error('Error updating client code:', error);
     return NextResponse.json(
       { message: 'Server error', error: (error as Error).message },
       { status: 500 }

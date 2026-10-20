@@ -162,7 +162,7 @@ export default function LeadDetailsPage() {
         await axios.put(`/api/admin/leads/${lead._id}`, { ...values, buyerCode: code });
       } else {
         if (!code) {
-          toast({ title: 'Vendor code required', description: 'Choose a vendor code such as C1.', variant: 'destructive' });
+          toast({ title: 'Client code required', description: 'Choose a client code such as C1.', variant: 'destructive' });
           setSubmitting(false);
           return;
         }
@@ -178,7 +178,7 @@ export default function LeadDetailsPage() {
       }
       toast({
         title: "Success",
-        description: isSuperAdmin ? "Lead updated successfully" : "Vendor code updated",
+        description: isSuperAdmin ? "Lead updated successfully" : "Client code updated",
       });
       fetchLeadDetails(lead._id);
       setUpdateDialogOpen(false);
@@ -235,14 +235,15 @@ export default function LeadDetailsPage() {
       <LeadProfile
         lead={lead}
         backButton={backButton}
-        onVendorCode={() => setUpdateDialogOpen(true)}
+        onClientCode={() => setUpdateDialogOpen(true)}
+        showCreatorName={isSuperAdmin}
         actions={
           <>
             <Button variant="outline" onClick={() => router.push(`/admin/leads/edit/${lead._id}`)}>
               <PenLine className="h-4 w-4" /> Edit lead
             </Button>
             <Button onClick={() => setUpdateDialogOpen(true)}>
-              <Tag className="h-4 w-4" /> {isSuperAdmin ? 'Status & vendor code' : 'Set vendor code'}
+              <Tag className="h-4 w-4" /> {isSuperAdmin ? 'Status & client code' : 'Set client code'}
             </Button>
           </>
         }
@@ -251,7 +252,7 @@ export default function LeadDetailsPage() {
       <Dialog open={updateDialogOpen} onOpenChange={setUpdateDialogOpen}>
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
-            <DialogTitle>{isSuperAdmin ? 'Status and vendor code' : 'Set vendor code'}</DialogTitle>
+            <DialogTitle>{isSuperAdmin ? 'Status and client code' : 'Set client code'}</DialogTitle>
             <DialogDescription className="flex flex-wrap items-center gap-2">
               <span className="font-medium text-foreground">{lead.firstName} {lead.lastName}</span>
               <StatusBadge status={lead.status} className="px-2 py-0 text-[11px]" />
@@ -302,7 +303,7 @@ export default function LeadDetailsPage() {
                 name="buyerCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Vendor code</FormLabel>
+                    <FormLabel>Client code</FormLabel>
                     {buyerCodes.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {buyerCodes.map(code => {
@@ -326,7 +327,7 @@ export default function LeadDetailsPage() {
                     )}
                     <FormControl>
                       <Input
-                        placeholder="Or type a new code, like C6"
+                        placeholder="Or type a new client code, like C6"
                         className="mt-1 font-mono uppercase"
                         value={field.value || ''}
                         onChange={(event) => field.onChange(event.target.value.toUpperCase())}
@@ -341,7 +342,7 @@ export default function LeadDetailsPage() {
                 <Button type="button" variant="outline" onClick={() => setUpdateDialogOpen(false)}>Cancel</Button>
                 <Button type="submit" disabled={submitting}>
                   {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {isSuperAdmin ? 'Save changes' : 'Save vendor code'}
+                  {isSuperAdmin ? 'Save changes' : 'Save client code'}
                 </Button>
               </DialogFooter>
             </form>

@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       catalog,
     });
   } catch (error) {
-    console.error('Error fetching vendor codes:', error);
+    console.error('Error fetching client codes:', error);
     return NextResponse.json(
       { message: 'Server error', error: (error as Error).message },
       { status: 500 }

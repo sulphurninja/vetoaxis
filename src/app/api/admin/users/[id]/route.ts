@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken, getAuthToken } from '@/lib/auth';
 import User from '@/models/User';
 import { dbConnect } from '@/lib/dbConnect';
+import { isValidVendorCode, normalizeVendorCode } from '@/lib/creator-visibility';
 
 export async function PUT(
   request: NextRequest,
@@ -73,6 +74,15 @@ export async function PUT(
     if (body.name) user.name = body.name;
     if (body.email) user.email = body.email;
     if (body.role) user.role = body.role;
+    if (body.vendorCode !== undefined) {
+      const vendorCode = normalizeVendorCode(body.vendorCode);
+      if (vendorCode && !isValidVendorCode(vendorCode)) {
+        return NextResponse.json({
+          message: 'Vendor code must be a short code like V1.',
+        }, { status: 400 });
+      }
+      user.set('vendorCode', vendorCode || undefined);
+    }
 
     // Handle active status updates
     if (body.active !== undefined) {
@@ -114,10 +124,14 @@ export async function PUT(
         role: user.role,
         active: user.active,
         createdAt: user.createdAt,
-        updatedAt: user.updatedAt
+        updatedAt: user.updatedAt,
+        vendorCode: user.vendorCode || '',
       }
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 11000 && error?.keyPattern?.vendorCode) {
+      return NextResponse.json({ message: 'That vendor code is already assigned.' }, { status: 409 });
+    }
     console.error('Error updating user:', error);
     return NextResponse.json(
       { message: 'Server error', error: (error as Error).message },

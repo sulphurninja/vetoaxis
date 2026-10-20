@@ -3,7 +3,8 @@ import { getAuthToken } from '@/lib/auth';
 import Lead from '@/models/Lead';
 import { dbConnect } from '@/lib/dbConnect';
 import User from '@/models/User';
-import { findDuplicateLead } from '@/lib/lead-duplicates';
+import { allowStoredDuplicates, findDuplicateLead } from '@/lib/lead-duplicates';
+import { redactLeadPeople } from '@/lib/creator-visibility';
 import {
   buildFieldsArray,
   composeAddress,
@@ -31,8 +32,8 @@ export async function GET(
     const { id: leadId } = await params;
 
     const lead = await Lead.findById(leadId)
-      .populate('createdBy', 'name email')
-      .populate('statusHistory.changedBy', 'name email');
+      .populate('createdBy', 'name email vendorCode')
+      .populate('statusHistory.changedBy', 'name email vendorCode');
 
     if (!lead) return NextResponse.json({ message: 'Lead not found' }, { status: 404 });
 
@@ -41,7 +42,7 @@ export async function GET(
       return NextResponse.json({ message: 'Access Denied' }, { status: 403 });
     }
 
-    return NextResponse.json({ lead });
+    return NextResponse.json({ lead: redactLeadPeople(lead, decoded.role as string) });
   } catch (error: any) {
     return NextResponse.json({ message: 'Server error', error: error.message }, { status: 500 });
   }
@@ -111,19 +112,11 @@ export async function PUT(
       });
     }
 
-    if (duplicateResult?.isDuplicate) {
-      return NextResponse.json({
-        message: duplicateResult.duplicateReason || 'This update matches another lead and was not saved.',
-        errors: duplicateResult.fieldErrors,
-        fieldErrors: duplicateResult.fieldErrors,
-        isDuplicate: true,
-        duplicateInfo: duplicateResult.existingLeadInfo,
-      }, { status: 409 });
-    }
-
-    // Handle status history and dynamic fields as before
-    const incomingStatus = body.status ? normalizeLeadStatus(body.status) : body.status;
-    if (incomingStatus && !LEAD_STATUSES.includes(incomingStatus as any)) {
+    const forceDuplicate = Boolean(duplicateResult?.isDuplicate);
+    const incomingStatus = forceDuplicate
+      ? 'DUPLICATE'
+      : (body.status ? normalizeLeadStatus(body.status) : body.status);
+    if (!forceDuplicate && incomingStatus && !LEAD_STATUSES.includes(incomingStatus as any)) {
       return NextResponse.json({ message: 'Invalid status selected' }, { status: 400 });
     }
 
@@ -131,7 +124,9 @@ export async function PUT(
       lead.statusHistory.push({
         fromStatus: lead.status,
         toStatus: incomingStatus,
-        notes: body.statusNote || "",
+        notes: forceDuplicate
+          ? (duplicateResult?.duplicateReason || 'Matched another lead, so this lead was saved as Duplicate.')
+          : (body.statusNote || ""),
         changedBy: decoded.id,
         timestamp: new Date()
       });
@@ -161,13 +156,19 @@ export async function PUT(
     lead.phoneNormalized = normalizePhone(lead.phone) || undefined;
     lead.addressNormalized = normalizeAddress(lead.toObject()) || undefined;
 
+    if (forceDuplicate) await allowStoredDuplicates();
     await lead.save();
+    const fresh = await Lead.findById(lead._id)
+      .populate('createdBy', 'name email vendorCode')
+      .populate('statusHistory.changedBy', 'name email vendorCode');
     return NextResponse.json({
-      message: 'Lead updated successfully',
-      lead,
-      isDuplicate: false,
-      duplicateInfo: null,
-      fieldErrors: [],
+      message: forceDuplicate
+        ? `Saved with Duplicate status. ${duplicateResult?.duplicateReason || 'It matches another lead.'}`
+        : 'Lead updated successfully',
+      lead: redactLeadPeople(fresh, decoded.role as string),
+      isDuplicate: forceDuplicate,
+      duplicateInfo: forceDuplicate ? duplicateResult?.existingLeadInfo || null : null,
+      fieldErrors: forceDuplicate ? duplicateResult?.fieldErrors || [] : [],
     });
   } catch (error: any) {
     if (error?.code === 11000) {

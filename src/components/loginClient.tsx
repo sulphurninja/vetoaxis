@@ -24,7 +24,7 @@ import { motion } from 'framer-motion';
 const HIGHLIGHTS = [
   { icon: Copy, title: 'Duplicate protection', body: 'Name, phone, email, address, and witness checks before anything saves.' },
   { icon: ShieldCheck, title: 'Verified contact data', body: 'Genuine 10-digit US numbers only. Junk and sequential numbers are rejected.' },
-  { icon: BarChart3, title: 'Pipeline clarity', body: 'Live status breakdowns, vendor codes, and full activity history.' },
+  { icon: BarChart3, title: 'Pipeline clarity', body: 'Live status breakdowns, client codes, and full activity history.' },
 ];
 
 export default function LoginClient() {

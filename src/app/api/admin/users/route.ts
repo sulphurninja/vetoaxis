@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken, getAuthToken, hashPassword } from '@/lib/auth';
 import User from '@/models/User';
 import { dbConnect } from '@/lib/dbConnect';
+import { isValidVendorCode, normalizeVendorCode } from '@/lib/creator-visibility';
 
 export async function GET(request: NextRequest) {
   try {
@@ -129,12 +130,20 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await hashPassword(body.password);
 
     // Create the user with appropriate organization (or without for super_admin)
+    const vendorCode = normalizeVendorCode(body.vendorCode);
+    if (vendorCode && !isValidVendorCode(vendorCode)) {
+      return NextResponse.json({
+        message: 'Vendor code must be a short code like V1.',
+      }, { status: 400 });
+    }
+
     const userData: any = {
       name: body.name,
       email: body.email,
       password: hashedPassword,
       role: body.role,
     };
+    if (vendorCode) userData.vendorCode = vendorCode;
 
     // Only add organizationId if it's provided or required
     if (organizationId || body.role !== 'super_admin') {
@@ -150,10 +159,14 @@ export async function POST(request: NextRequest) {
         name: user.name,
         email: user.email,
         role: user.role,
-        organizationId: user.organizationId
+        organizationId: user.organizationId,
+        vendorCode: user.vendorCode || '',
       }
     }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 11000 && error?.keyPattern?.vendorCode) {
+      return NextResponse.json({ message: 'That vendor code is already assigned.' }, { status: 409 });
+    }
     console.error('Error creating user:', error);
     return NextResponse.json(
       { message: 'Server error', error: (error as Error).message },

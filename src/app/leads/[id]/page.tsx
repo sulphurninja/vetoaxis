@@ -27,7 +27,7 @@ const statusUpdateSchema = z.object({
 });
 
 const vendorCodeSchema = z.object({
-  buyerCode: z.string().trim().min(1, 'Choose a vendor code such as C1.'),
+  buyerCode: z.string().trim().min(1, 'Choose a client code such as C1.'),
 });
 
 type StatusFormValues = z.infer<typeof statusUpdateSchema>;
@@ -114,10 +114,10 @@ export default function LeadDetailPage() {
         }
       }
       setLead((current: any) => current ? { ...current, buyerCode: code } : current);
-      toast({ title: 'Vendor code saved', description: `${lead.firstName} ${lead.lastName} is now ${code}.` });
+      toast({ title: 'Client code saved', description: `${lead.firstName} ${lead.lastName} is now ${code}.` });
       setVendorDialogOpen(false);
     } catch (err: any) {
-      toast({ title: 'Vendor code failed', description: err?.response?.data?.message || 'Please try again.', variant: 'destructive' });
+      toast({ title: 'Client code failed', description: err?.response?.data?.message || 'Please try again.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -164,12 +164,13 @@ export default function LeadDetailPage() {
       <LeadProfile
         lead={lead}
         backButton={backButton}
-        onVendorCode={canAssignVendorCode ? () => setVendorDialogOpen(true) : undefined}
+        onClientCode={canAssignVendorCode ? () => setVendorDialogOpen(true) : undefined}
+        showCreatorName={user?.role === 'super_admin'}
         actions={
           <>
             {canAssignVendorCode && (
               <Button variant="outline" onClick={() => setVendorDialogOpen(true)}>
-                <Tag className="h-4 w-4" /> Vendor code
+                <Tag className="h-4 w-4" /> Client code
               </Button>
             )}
             {user?.role === 'super_admin' && (
@@ -184,14 +185,14 @@ export default function LeadDetailPage() {
       <Dialog open={vendorDialogOpen} onOpenChange={setVendorDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Set vendor code</DialogTitle>
+            <DialogTitle>Set client code</DialogTitle>
             <DialogDescription>Pick C1–C5, or type a new code such as C6. New codes are saved for the whole team.</DialogDescription>
           </DialogHeader>
           <Form {...vendorForm}>
             <form onSubmit={vendorForm.handleSubmit(onUpdateVendorCode)} className="space-y-5">
               <FormField control={vendorForm.control} name="buyerCode" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Vendor code</FormLabel>
+                  <FormLabel>Client code</FormLabel>
                   {buyerCodes.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {buyerCodes.map(code => {
@@ -227,7 +228,7 @@ export default function LeadDetailPage() {
               <DialogFooter className="gap-2 sm:gap-2">
                 <Button type="button" variant="outline" onClick={() => setVendorDialogOpen(false)}>Cancel</Button>
                 <Button type="submit" disabled={submitting}>
-                  {submitting && <Loader2 className="h-4 w-4 animate-spin" />} Save vendor code
+                  {submitting && <Loader2 className="h-4 w-4 animate-spin" />} Save client code
                 </Button>
               </DialogFooter>
             </form>

@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       catalog,
     });
   } catch (error) {
-    console.error('Error fetching vendor codes:', error);
+    console.error('Error fetching client codes:', error);
     return NextResponse.json(
       { message: 'Server error', error: (error as Error).message },
       { status: 500 }
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
     if (!code || !/^[A-Z0-9-]{1,12}$/.test(code)) {
       return NextResponse.json({
-        message: 'Vendor code must be a short code like C1 or C6.',
+        message: 'Client code must be a short code like C1 or C6.',
       }, { status: 400 });
     }
 
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
         await existing.save();
         return NextResponse.json({ buyerCode: existing }, { status: 200 });
       }
-      return NextResponse.json({ message: 'Vendor code already exists' }, { status: 409 });
+      return NextResponse.json({ message: 'Client code already exists' }, { status: 409 });
     }
 
     const count = await BuyerCode.countDocuments();
@@ -101,9 +101,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ buyerCode }, { status: 201 });
   } catch (error: any) {
     if (error?.code === 11000) {
-      return NextResponse.json({ message: 'Vendor code already exists' }, { status: 409 });
+      return NextResponse.json({ message: 'Client code already exists' }, { status: 409 });
     }
-    console.error('Error creating vendor code:', error);
+    console.error('Error creating client code:', error);
     return NextResponse.json(
       { message: 'Server error', error: (error as Error).message },
       { status: 500 }
