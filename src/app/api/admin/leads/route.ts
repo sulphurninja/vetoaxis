@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from '@/lib/auth';
 import Lead from '@/models/Lead';
+import User from '@/models/User';
 import { dbConnect } from '@/lib/dbConnect';
 import { redactLeadPeople } from '@/lib/creator-visibility';
 import { applicationTypeQuery, createdAtDayQuery, getStatusQueryValue, LEGACY_STATUS_VALUES } from '@/lib/lead-utils';
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const createdBy = searchParams.get('createdBy');
+    const vendorCode = searchParams.get('vendorCode')?.trim().toUpperCase();
     const buyerCode = searchParams.get('buyerCode');
     const entryDate = searchParams.get('entryDate');
     const applicationType = searchParams.get('applicationType');
@@ -57,7 +59,10 @@ export async function GET(request: NextRequest) {
       const createdAt = createdAtDayQuery(entryDate);
       if (createdAt) query.createdAt = createdAt;
     }
-    if (createdBy) {
+    if (vendorCode) {
+      const owners = await User.find({ vendorCode }).select('_id').lean<{ _id: unknown }[]>();
+      query.createdBy = { $in: owners.map(owner => owner._id) };
+    } else if (createdBy) {
       query.createdBy = createdBy;
     }
     if (search) {

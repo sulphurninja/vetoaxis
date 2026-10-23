@@ -8,6 +8,7 @@ import { SiteHeader } from "@/components/site-header";
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
+import { StatusCatalogProvider } from '@/components/status-catalog';
 
 export default function DashboardLayout({ children, hideSidebar }: { children: ReactNode, hideSidebar?: boolean }) {
   const { user, loading: authLoading, authChecked } = useAuth();
@@ -45,7 +46,7 @@ export default function DashboardLayout({ children, hideSidebar }: { children: R
 
           <main className="app-canvas flex h-full w-full min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
             <div className="mx-auto w-full max-w-[1480px] px-4 py-6 md:px-8 md:py-8">
-              {children}
+              <StatusCatalogProvider>{children}</StatusCatalogProvider>
             </div>
           </main>
         </SidebarInset>

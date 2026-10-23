@@ -4,12 +4,12 @@ import Lead from '@/models/Lead';
 import { dbConnect } from '@/lib/dbConnect';
 import User from '@/models/User';
 import { allowStoredDuplicates, findDuplicateLead } from '@/lib/lead-duplicates';
+import { isAllowedLeadStatus } from '@/lib/lead-statuses';
 import { redactLeadPeople } from '@/lib/creator-visibility';
 import {
   buildFieldsArray,
   composeAddress,
   digitsOnlyPhone,
-  LEAD_STATUSES,
   normalizeAddress,
   normalizeEmail,
   normalizeLeadStatus,
@@ -116,7 +116,7 @@ export async function PUT(
     const incomingStatus = forceDuplicate
       ? 'DUPLICATE'
       : (body.status ? normalizeLeadStatus(body.status) : body.status);
-    if (!forceDuplicate && incomingStatus && !LEAD_STATUSES.includes(incomingStatus as any)) {
+    if (!forceDuplicate && incomingStatus && !(await isAllowedLeadStatus(incomingStatus))) {
       return NextResponse.json({ message: 'Invalid status selected' }, { status: 400 });
     }
 

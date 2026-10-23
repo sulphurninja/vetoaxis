@@ -35,58 +35,7 @@ const leadSchema = new mongoose.Schema({
   notes: String,
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization' },
   fields: [dynamicFieldSchema], // Array of dynamic fields
-  status: {
-    type: String,
-   enum: [
-  "PENDING",
-  "REJECTED",
-  "VERIFIED",
-  "REJECTED_BY_CLIENT",
-  "POSTED",
-  "Posted",
-  "PAID",
-  "SIGNED",
-  "VM",
-  "TRANSFERRED",
-  "Transferred",
-  "SEND_TO_ANOTHER_BUYER",
-  "SEND TO ANOTHER BUYER",
-  "DUPLICATE",
-  "NOT_RESPONDING",
-  "FELONY",
-  "DEAD_LEAD",
-  "WORKING",
-  "CALL_BACK",
-  "ATTEMPT_1",
-  "ATTEMPT_2",
-  "ATTEMPT_3",
-  "ATTEMPT_4",
-  "CHARGEBACK",
-  "WAITING_ID",
-  "SENT_TO_CLIENT",
-  "QC",
-  "ID_VERIFIED",
-  "BILLABLE",
-  "CAMPAIGN_PAUSED",
-  "SENT_TO_LAW_FIRM",
-  "RETURNED",
-  "ON_HOLD",
-  "REPLACE",
-  "REFRESH",
-  "REDO-TCPA",
-  "Refresh",
-  "REDOTCPA",
-  "RedoTCPA",
-  "FRAUD",
-  "Fraud",
-  "ONCALL",
-  "OnCall",
-  "INVERIFICATION",
-  "InVerification"
-],
-
-    default: "PENDING",
-  },
+  status: { type: String, default: "PENDING" },
   statusHistory: [statusHistorySchema],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   buyerCode: { type: String },
@@ -103,4 +52,10 @@ leadSchema.index({ organizationId: 1, addressNormalized: 1 });
 leadSchema.index({ organizationId: 1, emailNormalized: 1 });
 leadSchema.index({ organizationId: 1, phoneNormalized: 1 });
 
-export default mongoose.models.Lead || mongoose.model("Lead", leadSchema);
+const LeadModel = mongoose.models.Lead || mongoose.model("Lead", leadSchema);
+const statusPath = LeadModel.schema.path("status");
+if (statusPath?.validators) {
+  statusPath.validators = statusPath.validators.filter((validator: { type?: string }) => validator.type !== "enum");
+  if (statusPath.options) delete statusPath.options.enum;
+}
+export default LeadModel;

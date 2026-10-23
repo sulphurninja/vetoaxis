@@ -19,9 +19,9 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { DYNAMIC_FIELDS } from '@/lib/dynamic-fields';
-import { LEAD_STATUSES } from '@/lib/lead-utils';
+import { useLeadStatuses } from '@/components/status-catalog';
 import { PageHeader } from '@/components/page-header';
-import { StatusBadge, formatStatus } from '@/components/status-badge';
+import { StatusBadge } from '@/components/status-badge';
 import { CreatorMark, creatorActivityLabel } from '@/components/creator-mark';
 
 const PAGE_SIZE = 10;
@@ -31,6 +31,7 @@ const initialsOf = (lead: any) =>
 
 export default function ClientLeads() {
   const { user, loading: authLoading, authChecked } = useAuth();
+  const leadStatuses = useLeadStatuses();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -139,8 +140,8 @@ export default function ClientLeads() {
                 </SelectTrigger>
                 <SelectContent className="max-h-72">
                   <SelectItem value="All">All statuses</SelectItem>
-                  {LEAD_STATUSES.map(status => (
-                    <SelectItem key={status} value={status}>{formatStatus(status)}</SelectItem>
+                  {leadStatuses.map(status => (
+                    <SelectItem key={status.key} value={status.key}>{status.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

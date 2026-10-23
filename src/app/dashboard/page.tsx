@@ -90,12 +90,13 @@ export default function DashboardPage() {
         }
     }, [countFor])
 
-    const statusRows = useMemo(() =>
-        Object.keys(STATUS_CONFIG)
-            .map(status => ({ statusKey: status, name: formatStatus(status), value: countFor(status) }))
-            .sort((a, b) => b.value - a.value),
-        [countFor]
-    )
+    const statusRows = useMemo(() => {
+        const known = Object.keys(STATUS_CONFIG).map(status => ({ statusKey: status, name: formatStatus(status), value: countFor(status) }))
+        const extras = (stats?.statusCounts || [])
+            .filter((item: { _id?: string }) => item._id && !STATUS_CONFIG[item._id])
+            .map((item: { _id: string; count: number }) => ({ statusKey: item._id, name: formatStatus(item._id), value: item.count }))
+        return [...known, ...extras].sort((a, b) => b.value - a.value)
+    }, [countFor, stats])
     const activeStatusRows = statusRows.filter(row => row.value > 0).slice(0, 10)
 
     const totalLeads = stats?.totalLeads || 0
@@ -198,7 +199,7 @@ export default function DashboardPage() {
                                         <Tooltip cursor={{ fill: 'var(--muted)', opacity: 0.5 }} contentStyle={tooltipStyle} />
                                         <Bar dataKey="value" name="Leads" radius={[0, 6, 6, 0]} barSize={16}>
                                             {activeStatusRows.map(entry => (
-                                                <Cell key={entry.statusKey} fill={STATUS_CONFIG[entry.statusKey].color} />
+                                                <Cell key={entry.statusKey} fill={STATUS_CONFIG[entry.statusKey]?.color || '#64748b'} />
                                             ))}
                                         </Bar>
                                     </BarChart>
@@ -317,7 +318,7 @@ export default function DashboardPage() {
                 >
                     <div className="grid grid-cols-2 gap-2 p-4 pt-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                         {statusRows.map(({ statusKey, name, value }) => {
-                            const config = STATUS_CONFIG[statusKey]
+                            const config = STATUS_CONFIG[statusKey] || { icon: null, color: '#64748b' }
                             const percentage = totalLeads > 0 ? (value / totalLeads) * 100 : 0
                             return (
                                 <Link

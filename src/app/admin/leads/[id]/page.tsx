@@ -43,12 +43,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import DashboardLayout from '@/components/DashboardLayout';
-import { LEAD_STATUSES, normalizeLeadStatus } from '@/lib/lead-utils';
+import { normalizeLeadStatus } from '@/lib/lead-utils';
+import { useLeadStatuses } from '@/components/status-catalog';
 import { LeadProfile } from '@/components/lead-profile';
-import { StatusBadge, formatStatus } from '@/components/status-badge';
+import { StatusBadge } from '@/components/status-badge';
 
 const updateLeadSchema = z.object({
-  status: z.enum([...LEAD_STATUSES] as [string, ...string[]]),
+  status: z.string().min(1, 'Status is required'),
   notes: z.string().optional(),
   buyerCode: z.string().optional(),
 });
@@ -96,6 +97,7 @@ export default function LeadDetailsPage() {
   const { user, loading: authLoading, authChecked } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const isSuperAdmin = user?.role === 'super_admin';
+  const leadStatuses = useLeadStatuses();
   const [buyerCodes, setBuyerCodes] = useState<string[]>([]);
   const [lead, setLead] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
@@ -158,16 +160,7 @@ export default function LeadDetailsPage() {
     setSubmitting(true);
     try {
       const code = (values.buyerCode || '').trim().toUpperCase();
-      if (isSuperAdmin) {
-        await axios.put(`/api/admin/leads/${lead._id}`, { ...values, buyerCode: code });
-      } else {
-        if (!code) {
-          toast({ title: 'Client code required', description: 'Choose a client code such as C1.', variant: 'destructive' });
-          setSubmitting(false);
-          return;
-        }
-        await axios.put(`/api/admin/leads/${lead._id}/buyer-code`, { buyerCode: code });
-      }
+      await axios.put(`/api/admin/leads/${lead._id}`, { ...values, buyerCode: code });
       if (code && !buyerCodes.includes(code)) {
         try {
           await axios.post('/api/admin/buyer-codes', { code });
@@ -178,7 +171,7 @@ export default function LeadDetailsPage() {
       }
       toast({
         title: "Success",
-        description: isSuperAdmin ? "Lead updated successfully" : "Client code updated",
+        description: "Lead updated successfully",
       });
       fetchLeadDetails(lead._id);
       setUpdateDialogOpen(false);
@@ -243,7 +236,7 @@ export default function LeadDetailsPage() {
               <PenLine className="h-4 w-4" /> Edit lead
             </Button>
             <Button onClick={() => setUpdateDialogOpen(true)}>
-              <Tag className="h-4 w-4" /> {isSuperAdmin ? 'Status & client code' : 'Set client code'}
+              <Tag className="h-4 w-4" /> Status & client code
             </Button>
           </>
         }
@@ -252,7 +245,7 @@ export default function LeadDetailsPage() {
       <Dialog open={updateDialogOpen} onOpenChange={setUpdateDialogOpen}>
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
-            <DialogTitle>{isSuperAdmin ? 'Status and client code' : 'Set client code'}</DialogTitle>
+            <DialogTitle>Status and client code</DialogTitle>
             <DialogDescription className="flex flex-wrap items-center gap-2">
               <span className="font-medium text-foreground">{lead.firstName} {lead.lastName}</span>
               <StatusBadge status={lead.status} className="px-2 py-0 text-[11px]" />
@@ -261,7 +254,7 @@ export default function LeadDetailsPage() {
 
           <Form {...updateForm}>
             <form onSubmit={updateForm.handleSubmit(handleUpdateStatus)} className="space-y-5">
-              {isSuperAdmin && <FormField
+              <FormField
                 control={updateForm.control}
                 name="status"
                 render={({ field }) => (
@@ -274,17 +267,17 @@ export default function LeadDetailsPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent className="max-h-72">
-                        {LEAD_STATUSES.map((status) => (
-                          <SelectItem key={status} value={status}>{formatStatus(status)}</SelectItem>
+                        {leadStatuses.map((status) => (
+                          <SelectItem key={status.key} value={status.key}>{status.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
                 )}
-              />}
+              />
 
-              {isSuperAdmin && <FormField
+              <FormField
                 control={updateForm.control}
                 name="notes"
                 render={({ field }) => (
@@ -296,7 +289,7 @@ export default function LeadDetailsPage() {
                     <FormMessage />
                   </FormItem>
                 )}
-              />}
+              />
 
               <FormField
                 control={updateForm.control}
@@ -342,7 +335,7 @@ export default function LeadDetailsPage() {
                 <Button type="button" variant="outline" onClick={() => setUpdateDialogOpen(false)}>Cancel</Button>
                 <Button type="submit" disabled={submitting}>
                   {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {isSuperAdmin ? 'Save changes' : 'Save client code'}
+                  Save changes
                 </Button>
               </DialogFooter>
             </form>

@@ -1,5 +1,8 @@
+'use client';
+
 import { STATUS_CONFIG } from '@/app/dashboard/status-registry';
 import { normalizeLeadStatus } from '@/lib/lead-utils';
+import { useLeadStatuses } from '@/components/status-catalog';
 import { cn } from '@/lib/utils';
 
 const hexToRgba = (hex: string, alpha: number) => {
@@ -19,7 +22,11 @@ export const formatStatus = (status?: string | null) => {
 };
 
 export function StatusBadge({ status, className }: { status?: string | null; className?: string }) {
-  const color = statusColor(status);
+  const statuses = useLeadStatuses();
+  const key = normalizeLeadStatus(status);
+  const custom = statuses.find(item => item.key === key);
+  const color = STATUS_CONFIG[key]?.color || custom?.color || statusColor(status);
+  const label = custom?.label || formatStatus(status);
   return (
     <span
       className={cn(
@@ -33,7 +40,7 @@ export function StatusBadge({ status, className }: { status?: string | null; cla
       }}
     >
       <span className="size-1.5 rounded-full" style={{ backgroundColor: color }} />
-      {formatStatus(status)}
+      {label}
     </span>
   );
 }

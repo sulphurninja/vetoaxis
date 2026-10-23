@@ -17,7 +17,7 @@ import { toast } from '@/components/ui/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
-import { LEAD_STATUSES } from '@/lib/lead-utils';
+import { useLeadStatuses } from '@/components/status-catalog';
 import { LeadProfile } from '@/components/lead-profile';
 import { formatStatus } from '@/components/status-badge';
 
@@ -45,6 +45,8 @@ export default function LeadDetailPage() {
   const [vendorDialogOpen, setVendorDialogOpen] = useState(false);
   const [buyerCodes, setBuyerCodes] = useState<string[]>([]);
   const canAssignVendorCode = user?.role === 'admin' || user?.role === 'super_admin';
+  const leadStatuses = useLeadStatuses();
+  const canUpdateStatus = canAssignVendorCode;
 
   const form = useForm<StatusFormValues>({
     resolver: zodResolver(statusUpdateSchema),
@@ -173,7 +175,7 @@ export default function LeadDetailPage() {
                 <Tag className="h-4 w-4" /> Client code
               </Button>
             )}
-            {user?.role === 'super_admin' && (
+            {canUpdateStatus && (
               <Button onClick={() => setStatusDialogOpen(true)}>
                 <PenLine className="h-4 w-4" /> Update status
               </Button>
@@ -254,8 +256,8 @@ export default function LeadDetailPage() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="max-h-72">
-                      {LEAD_STATUSES.map(s => (
-                        <SelectItem key={s} value={s}>{formatStatus(s)}</SelectItem>
+                      {leadStatuses.map(s => (
+                        <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

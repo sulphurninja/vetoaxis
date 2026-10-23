@@ -39,7 +39,7 @@ import { DateInput } from '@/components/ui/DateInput';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader, StatCard } from '@/components/page-header';
-import { StatusBadge, formatStatus } from '@/components/status-badge';
+import { StatusBadge } from '@/components/status-badge';
 import { CreatorMark } from '@/components/creator-mark';
 import {
   DropdownMenu,
@@ -75,12 +75,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { DYNAMIC_FIELDS } from '@/lib/dynamic-fields';
-import { LEAD_STATUSES, normalizeLeadStatus } from '@/lib/lead-utils';
+import { normalizeLeadStatus } from '@/lib/lead-utils';
+import { useLeadStatuses } from '@/components/status-catalog';
+import { ClientCodeManager, StatusManager } from '@/components/catalog-managers';
 
 const LEADS_PAGE_SIZE = 30;
 
 const updateLeadSchema = z.object({
-  status: z.enum([...LEAD_STATUSES] as [string, ...string[]]),
+  status: z.string().min(1, 'Status is required'),
   notes: z.string().optional(),
   buyerCode: z.string().optional(),
 });
@@ -126,6 +128,8 @@ export default function LeadManagement() {
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [createdByFilter, setCreatedByFilter] = useState<string>('ALL');
   const [buyerCodeFilter, setBuyerCodeFilter] = useState<string>('ALL');
+  const [vendorCodeFilter, setVendorCodeFilter] = useState<string>('ALL');
+  const [vendorCodes, setVendorCodes] = useState<string[]>([]);
   const [caseTypeFilter, setCaseTypeFilter] = useState<string>('ALL');
   const [entryDate, setEntryDate] = useState<string>('');
   const [users, setUsers] = useState<UserOption[]>([]);
@@ -140,6 +144,7 @@ export default function LeadManagement() {
   const { user, loading: authLoading, authChecked } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const isSuperAdmin = user?.role === 'super_admin';
+  const leadStatuses = useLeadStatuses();
 
   const updateForm = useForm<UpdateLeadFormValues>({
     resolver: zodResolver(updateLeadSchema),
@@ -158,6 +163,10 @@ export default function LeadManagement() {
       try {
         const codesRes = await axios.get('/api/admin/buyer-codes');
         setBuyerCodes(codesRes.data?.buyerCodes || []);
+        if (!isSuperAdmin) {
+          const vendorRes = await axios.get('/api/admin/vendor-codes');
+          setVendorCodes(vendorRes.data?.vendorCodes || []);
+        }
         if (isSuperAdmin) {
           const usersRes = await axios.get('/api/admin/users');
           setUsers(usersRes.data?.users || []);
@@ -190,8 +199,11 @@ export default function LeadManagement() {
     if (isSuperAdmin && createdByFilter && createdByFilter !== 'ALL') {
       params.set('createdBy', createdByFilter);
     }
+    if (!isSuperAdmin && vendorCodeFilter && vendorCodeFilter !== 'ALL') {
+      params.set('vendorCode', vendorCodeFilter);
+    }
     return params;
-  }, [statusFilter, buyerCodeFilter, caseTypeFilter, entryDate, debouncedSearchQuery, isSuperAdmin, createdByFilter, user?.id]);
+  }, [statusFilter, buyerCodeFilter, caseTypeFilter, entryDate, debouncedSearchQuery, isSuperAdmin, createdByFilter, vendorCodeFilter, user?.id]);
 
   const fetchLeadsPage = useCallback(async (
     pageToLoad: number,
@@ -274,20 +286,9 @@ export default function LeadManagement() {
     setSubmitting(true);
     try {
       const code = (values.buyerCode || '').trim().toUpperCase();
-      if (isSuperAdmin) {
-        await axios.put(`/api/admin/leads/${selectedLead._id}`, { ...values, buyerCode: code });
-        if (code) await rememberVendorCode(code);
-        toast({ title: "Success", description: "Lead updated" });
-      } else {
-        if (!code) {
-          toast({ title: "Client code required", description: "Choose a client code such as C1.", variant: "destructive" });
-          setSubmitting(false);
-          return;
-        }
-        await axios.put(`/api/admin/leads/${selectedLead._id}/buyer-code`, { buyerCode: code });
-        await rememberVendorCode(code);
-        toast({ title: "Success", description: "Client code updated" });
-      }
+      await axios.put(`/api/admin/leads/${selectedLead._id}`, { ...values, buyerCode: code });
+      if (code) await rememberVendorCode(code);
+      toast({ title: "Success", description: "Lead updated" });
       setUpdateDialogOpen(false);
       setReloadKey((k) => k + 1);
     } catch (error: any) {
@@ -320,6 +321,7 @@ export default function LeadManagement() {
     statusFilter !== 'All' ||
     createdByFilter !== 'ALL' ||
     buyerCodeFilter !== 'ALL' ||
+    vendorCodeFilter !== 'ALL' ||
     caseTypeFilter !== 'ALL' ||
     entryDate
   );
@@ -329,6 +331,7 @@ export default function LeadManagement() {
     setStatusFilter('All');
     setCreatedByFilter('ALL');
     setBuyerCodeFilter('ALL');
+    setVendorCodeFilter('ALL');
     setCaseTypeFilter('ALL');
     setEntryDate('');
   };
@@ -351,9 +354,13 @@ export default function LeadManagement() {
           title="Lead Management"
           description="Review every lead across the team. Client codes are assigned on the lead. Vendor codes belong to the person who created it."
           actions={
-            <Button variant="outline" onClick={() => setReloadKey((k) => k + 1)}>
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </Button>
+            <>
+              <ClientCodeManager codes={buyerCodes} onChange={setBuyerCodes} />
+              {isSuperAdmin && <StatusManager />}
+              <Button variant="outline" onClick={() => setReloadKey((k) => k + 1)}>
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+              </Button>
+            </>
           }
         />
 
@@ -396,7 +403,7 @@ export default function LeadManagement() {
                 </SelectTrigger>
                 <SelectContent className="max-h-72">
                   <SelectItem value="All">All statuses</SelectItem>
-                  {LEAD_STATUSES.map(s => <SelectItem key={s} value={s}>{formatStatus(s)}</SelectItem>)}
+                  {leadStatuses.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={caseTypeFilter} onValueChange={setCaseTypeFilter}>
@@ -408,6 +415,17 @@ export default function LeadManagement() {
                   {Object.keys(DYNAMIC_FIELDS).map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {!isSuperAdmin && (
+                <Select value={vendorCodeFilter} onValueChange={setVendorCodeFilter}>
+                  <SelectTrigger size="sm" className="w-[170px]">
+                    <SelectValue placeholder="Vendor code" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    <SelectItem value="ALL">All vendor codes</SelectItem>
+                    {vendorCodes.map(code => <SelectItem key={code} value={code}>{code}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
               {isSuperAdmin && (
                 <>
                   <Select value={createdByFilter} onValueChange={setCreatedByFilter}>
@@ -539,11 +557,9 @@ export default function LeadManagement() {
                             <DropdownMenuItem onClick={() => router.push(`/admin/leads/${lead._id}`)} className="cursor-pointer">
                               <Eye className="mr-2 h-4 w-4" /> View details
                             </DropdownMenuItem>
-                            {isSuperAdmin && (
-                              <DropdownMenuItem onClick={() => handleUpdateLeadClick(lead)} className="cursor-pointer">
-                                <FileEdit className="mr-2 h-4 w-4" /> Update status
-                              </DropdownMenuItem>
-                            )}
+                            <DropdownMenuItem onClick={() => handleUpdateLeadClick(lead)} className="cursor-pointer">
+                              <FileEdit className="mr-2 h-4 w-4" /> Update status
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleUpdateLeadClick(lead)} className="cursor-pointer">
                               <Tag className="mr-2 h-4 w-4" /> Set client code
                             </DropdownMenuItem>
@@ -589,19 +605,17 @@ export default function LeadManagement() {
         <Dialog open={updateDialogOpen} onOpenChange={setUpdateDialogOpen}>
           <DialogContent className="sm:max-w-[440px]">
             <DialogHeader>
-              <DialogTitle>{isSuperAdmin ? 'Status and client code' : 'Set client code'}</DialogTitle>
+              <DialogTitle>Status and client code</DialogTitle>
               <DialogDescription>
                 {selectedLead && (
                   <span className="font-medium text-foreground">{selectedLead.firstName} {selectedLead.lastName} · </span>
                 )}
-                {isSuperAdmin
-                  ? 'Change status, add a notepad entry, or assign a client code.'
-                  : 'Assign a simple client code such as C1 or C2.'}
+                Change status, add a notepad entry, or assign a client code.
               </DialogDescription>
             </DialogHeader>
             <Form {...updateForm}>
               <form onSubmit={updateForm.handleSubmit(onUpdateLead)} className="space-y-5">
-                {isSuperAdmin && <FormField control={updateForm.control} name="status" render={({ field }) => (
+                <FormField control={updateForm.control} name="status" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -611,19 +625,19 @@ export default function LeadManagement() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent className="max-h-60">
-                        {LEAD_STATUSES.map(s => <SelectItem key={s} value={s}>{formatStatus(s)}</SelectItem>)}
+                        {leadStatuses.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </FormItem>
-                )} />}
-                {isSuperAdmin && <FormField control={updateForm.control} name="notes" render={({ field }) => (
+                )} />
+                <FormField control={updateForm.control} name="notes" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Notepad</FormLabel>
                     <FormControl>
                       <Textarea placeholder="Why is this status changing?" className="resize-none" {...field} />
                     </FormControl>
                   </FormItem>
-                )} />}
+                )} />
                 <FormField control={updateForm.control} name="buyerCode" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Client code</FormLabel>
@@ -663,7 +677,7 @@ export default function LeadManagement() {
                   <Button type="button" variant="outline" onClick={() => setUpdateDialogOpen(false)}>Cancel</Button>
                   <Button type="submit" disabled={submitting}>
                     {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {isSuperAdmin ? 'Save changes' : 'Save client code'}
+                    Save changes
                   </Button>
                 </DialogFooter>
               </form>

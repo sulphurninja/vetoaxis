@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken } from '@/lib/auth';
 import Lead from '@/models/Lead';
 import { dbConnect } from '@/lib/dbConnect';
-import { LEAD_STATUSES, normalizeLeadStatus } from '@/lib/lead-utils';
+import { normalizeLeadStatus } from '@/lib/lead-utils';
+import { isAllowedLeadStatus } from '@/lib/lead-statuses';
 import { redactLeadPeople } from '@/lib/creator-visibility';
 
 export async function GET(
@@ -71,23 +72,8 @@ export async function PUT(
     const body = await request.json();
     const { notes, buyerCode } = body;
     const status = body.status ? normalizeLeadStatus(body.status) : body.status;
-    const isSuperAdmin = decoded.role === 'super_admin';
 
-    if (!isSuperAdmin) {
-      const code = typeof buyerCode === 'string' ? buyerCode.trim().toUpperCase() : '';
-      if (!code) {
-        return NextResponse.json({ message: 'Client code is required.' }, { status: 400 });
-      }
-      const updated = await Lead.findByIdAndUpdate(
-        leadId,
-        { $set: { buyerCode: code } },
-        { new: true }
-      );
-      if (!updated) return NextResponse.json({ message: 'Lead not found' }, { status: 404 });
-      return NextResponse.json({ message: 'Client code updated', lead: redactLeadPeople(updated, decoded.role as string) });
-    }
-
-    if (status && !LEAD_STATUSES.includes(status)) {
+    if (status && !(await isAllowedLeadStatus(status))) {
       return NextResponse.json({ message: 'Invalid status selected' }, { status: 400 });
     }
 
